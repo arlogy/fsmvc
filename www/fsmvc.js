@@ -1183,22 +1183,25 @@ var Fsmvc = (function() {
             if(options.fitSizeToScreen === true) {
                 var screenObj = window.screen;
                 if(screenObj) {
-                    var screenFactor = options.fitSizeToScreenFactor;
-                    if(!valueIsNumberInRange(screenFactor, 0, 1)) {
-                        screenFactor = 0.75;
-                    }
-                    // some screen properties might be supported by browser while others are not
-                    // so we have to check them separately
                     if('availWidth' in screenObj) {
                         var screenWidth = screenObj.availWidth;
+                        var screenWidthFactor = options.fitSizeToScreenWidthFactor;
+                        if(!valueIsNumberInRange(screenWidthFactor, 0, 1)) {
+                            screenWidthFactor = 0.75;
+                        }
                         if(canvasWidth >= screenWidth) {
-                            canvasWidth = screenFactor * screenWidth;
+                            canvasWidth = screenWidthFactor * screenWidth;
                         }
                     }
+
                     if('availHeight' in screenObj) {
                         var screenHeight = screenObj.availHeight;
+                        var screenHeightFactor = options.fitSizeToScreenHeightFactor;
+                        if(!valueIsNumberInRange(screenHeightFactor, 0, 1)) {
+                            screenHeightFactor = 0.75;
+                        }
                         if(canvasHeight >= screenHeight) {
-                            canvasHeight = screenFactor * screenHeight;
+                            canvasHeight = screenHeightFactor * screenHeight;
                         }
                     }
                 }
@@ -1969,6 +1972,21 @@ var Fsmvc = (function() {
             return document.getElementById(quickTestOutputId);
         }
 
+        function isOutputEltVisible() {
+            var elt = getOutputElt();
+            return window.getComputedStyle(elt, null).display !== 'none'; // relies on the behaviour of outputText()
+            // note that getComputedStyle() is required for styles in external stylesheets to be inspected
+        }
+
+        function setOutputEltVisible(visible) {
+            var elt = getOutputElt();
+            elt.style.display = visible ? 'block' : 'none'; // relies on the behaviour of outputText()
+        }
+
+        function switchOutputEltVisibility() {
+            setOutputEltVisible(!isOutputEltVisible());
+        }
+
         function outputText(text) {
             var elt = getOutputElt();
             elt.style.display = 'block'; // assuming element first had CSS 'display: none;'
@@ -2039,6 +2057,10 @@ var Fsmvc = (function() {
         }
 
         return {
+            'isOutputEltVisible': isOutputEltVisible,
+            'setOutputEltVisible': setOutputEltVisible,
+            'switchOutputEltVisibility': switchOutputEltVisibility,
+
             'outputJson': outputJson,
             'outputPng': outputPng,
             'outputSvg': outputSvg,
