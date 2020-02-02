@@ -90,8 +90,8 @@ var Fsmvc = (function() {
         'global': {
             'autoBackup': true, // tells whether a local backup must be saved automatically,
                                 // in which case it is also restored automatically
-            'autoBackupId': 'fsmvc.autobackup.default', // the id used for auto-backup when enabled
-                                                        // you might want to set this to distinguish between backups
+            'autoBackupId': 'fsmvc_autoBackup_id', // the id used for auto-backup when enabled
+                                                   // you might want to set this to distinguish between backups
         },
         'canvas': {
             'acceptLinks': true, // tells whether instances of Link can be pushed into canvas (not just from the user interface)
@@ -1960,8 +1960,8 @@ var Fsmvc = (function() {
         };
     })();
 
-    var quickTestCanvasId = 'fsmvc.quicktest.canvas';
-    var quickTestOutputId = 'fsmvc.quicktest.output';
+    var quickTestCanvasId = 'fsmvc_quickTest_canvasId';
+    var quickTestOutputId = 'fsmvc_quickTest_outputId';
     var quickTest = (function() {
         function defaultCallback(success, msg, sideNote) {
             window.alert(msg + "\n\n" + sideNote);
