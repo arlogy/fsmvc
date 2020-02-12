@@ -1729,10 +1729,10 @@ var Fsmvc = (function() {
         };
     }
 
-    // Saves backup locally. You don't need to call this function unless
-    // automatic backup is disabled.
+    // Saves backup locally and returns a boolean success/failure flag. You
+    // don't need to call this function unless automatic backup is disabled.
     function saveBackup(id) {
-        setLocalStorageItem(id, fetchJsonString());
+        return setLocalStorageItem(id, fetchJsonString());
     }
 
     // Restores local backup and returns a boolean success/failure flag. You
@@ -1758,8 +1758,10 @@ var Fsmvc = (function() {
         try { // see (1) at the bottom of this script
             if(window.localStorage) {
                 window.localStorage.setItem(keyStr, valueStr);
+                return true;
             }
         } catch(e) {}
+        return false;
     }
 
     function getLocalStorageItem(keyStr) {
@@ -1771,7 +1773,7 @@ var Fsmvc = (function() {
     }
 
     var algorithms = (function() {
-        // Sets the given properties for each node.
+        // Sets the given properties for each node but doesn't draw().
         function setNodesProps(propNames, propValues) {
             for(var i = 0; i < nodes.length; i++) {
                 for(var j = 0; j < propNames.length; j++) {
@@ -1780,7 +1782,7 @@ var Fsmvc = (function() {
             }
         }
 
-        // Sets the given properties for each link.
+        // Sets the given properties for each link but doesn't draw().
         function setLinksProps(propNames, propValues) {
             for(var i = 0; i < links.length; i++) {
                 for(var j = 0; j < propNames.length; j++) {
@@ -1873,19 +1875,22 @@ var Fsmvc = (function() {
 
         // Builds a finite state machine model from canvas content and returns
         // it. The returned model might be invalid (see its 'errors' property).
-        function buildFsmModel() {
+        // The ensureInitialState parameter tells whether FSM must be considered
+        // invalid in case it doesn't contain any initial state. It defaults to
+        // true.
+        function buildFsmModel(ensureInitialState) {
             var fsmObj = {
                 'errors': [], // list of errors if any
                 'states': {
                     'all': {}, // key/value pairs:
                                //     - key is the id of a state (built from node text in canvas)
-                               //     - value is a node object in canvas
+                               //     - value is a node object in canvas (won't be null if FSM is valid)
                     'initial': [], // array of state ids
                     'accepting': [], // array of state ids
                 },
                 'transitions': {}, // can be accessed as follows:
-                                   //     - transitions[<state_id>] returns <object_or_undefined>
-                                   //     - transitions[<state_id>][<input>] returns <possibly_emty_array_of_state_ids>
+                                   //     - transitions[<state_id>] returns a transition object
+                                   //     - transitions[<state_id>][<input>] returns undefined or a non-emty array of state ids
             };
 
             for(var i = 0; i < nodes.length; i++) {
@@ -1906,13 +1911,13 @@ var Fsmvc = (function() {
                         if(node.isAcceptState) {
                             fsmObj.states.accepting.push(stateId);
                         }
+                        fsmObj.transitions[stateId] = {}; // transition object
                     }
                 }
             }
 
-            if(nodes.length !== 0 && fsmObj.states.initial.length === 0) {
-                // we check errors because initial states might have just been ignored (because they are invalid)
-                if(fsmObj.errors.length === 0) {
+            if(ensureInitialState === undefined || ensureInitialState) {
+                if(fsmObj.states.initial.length === 0) {
                     fsmObj.errors.push("No state has been marked initial.");
                 }
             }
@@ -1922,14 +1927,11 @@ var Fsmvc = (function() {
                 if(link instanceof Link || link instanceof SelfLink) {
                     var linkText = convertLatexShortcuts(link.text.trim());
                     var linkNodes = link.getTwoExtremityNodes();
-                    var transitionState1Id = convertLatexShortcuts(linkNodes[0].text.trim());
-                    var transitionState2Id = convertLatexShortcuts(linkNodes[1].text.trim());
+                    var transitionState1Id = convertLatexShortcuts(linkNodes[0].text.trim()); // so that state id can match with one previously saved
+                    var transitionState2Id = convertLatexShortcuts(linkNodes[1].text.trim()); // same here
                     var transitionInputsConfig = {'failsForWhitespacesInput': true};
                     var transitionInputs = splitString(linkText, transitionInputsConfig);
                     if(transitionInputsConfig.success) {
-                        if(fsmObj.transitions[transitionState1Id] === undefined) {
-                            fsmObj.transitions[transitionState1Id] = {};
-                        }
                         var transitionObj = fsmObj.transitions[transitionState1Id];
                         for(var j = 0; j < transitionInputs.length; j++) {
                             var input = transitionInputs[j];
