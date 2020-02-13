@@ -1041,15 +1041,17 @@ var Fsmvc = (function() {
     //     - '_0' -> '₀' thus 's_0' -> 's₀'
     // Note that the double '\\' is to escape '\'.
     function convertLatexShortcuts(text) {
-        // html greek characters
-        for(var i = 0; i < greekLetterNames.length; i++) {
+        var i = 0;
+
+        // Html greek characters
+        for(i = 0; i < greekLetterNames.length; i++) {
             var name = greekLetterNames[i];
             text = text.replace(new RegExp('\\\\' + name, 'g'), String.fromCharCode(913 + i + (i > 16)));
             text = text.replace(new RegExp('\\\\' + name.toLowerCase(), 'g'), String.fromCharCode(945 + i + (i > 16)));
         }
 
-        // subscripts
-        for(var i = 0; i < 10; i++) {
+        // Subscripts
+        for(i = 0; i < 10; i++) {
             text = text.replace(new RegExp('_' + i, 'g'), String.fromCharCode(8320 + i));
         }
 
@@ -1086,6 +1088,7 @@ var Fsmvc = (function() {
     var listenersStarted = false;
 
     var canvas = null;
+    var fsmAlphabetContainer = null;
     var nodes = [];
     var links = [];
 
@@ -1113,6 +1116,7 @@ var Fsmvc = (function() {
                 config.links.arrowHeadAtDst = true;
                 config.links.arrowHeadAtDstOverridable = false;
                 config.nodes.canBeAcceptStates = true;
+                setFsmAlphabetVisible(true);
                 break;
             case 'digraph':
                 config.canvas.acceptLinks = true;
@@ -1123,6 +1127,7 @@ var Fsmvc = (function() {
                 config.links.arrowHeadAtDst = true;
                 config.links.arrowHeadAtDstOverridable = false;
                 config.nodes.canBeAcceptStates = false;
+                setFsmAlphabetVisible(false);
                 break;
             case 'undigraph':
                 config.canvas.acceptLinks = true;
@@ -1133,6 +1138,7 @@ var Fsmvc = (function() {
                 config.links.arrowHeadAtDst = false;
                 config.links.arrowHeadAtDstOverridable = false;
                 config.nodes.canBeAcceptStates = false;
+                setFsmAlphabetVisible(false);
                 break;
             case 'array':
                 config.canvas.acceptLinks = false;
@@ -1143,13 +1149,16 @@ var Fsmvc = (function() {
                 config.links.arrowHeadAtDst = false;
                 config.links.arrowHeadAtDstOverridable = false;
                 config.nodes.canBeAcceptStates = false;
+                setFsmAlphabetVisible(false);
                 break;
         }
     }
 
     // Initializes canvas so that it is ready to interact with and returns
     // whether initialization is a success. The canvasId parameter is required
-    // but canvasOptions is not: see setCanvas().
+    // but canvasOptions is not: see setCanvas(). Also note that this function
+    // initializes FSM alphabet container based on canvas' properties. See
+    // initFsmAlphabetContainer().
     //
     // You don't need to call this function unless your canvas has a specific id
     // (i.e. you are not using the quick-test-canvas-id).
@@ -1160,12 +1169,45 @@ var Fsmvc = (function() {
 
         var canvasOk = setCanvas(canvasId, canvasOptions);
         if(canvasOk) {
+            initFsmAlphabetContainer(canvasId);
             if(!restoreBackupAuto()) {
                 draw(); // we draw() only when restoreBackupAuto() didn't do so
             }
             startListeners();
         }
         return canvasOk;
+    }
+
+    // Initializes FSM alphabet container which is assumed to be an Html
+    // <input type="text"> element.
+    function initFsmAlphabetContainer(canvasId) {
+        var canvasRect = canvas.getBoundingClientRect();
+        var canvasRectTop = canvasRect.top + window.scrollY; // in case page is scrolled
+        var canvasRectLeft = canvasRect.left + window.scrollX; // in case page is scrolled
+
+        var inputTextId = canvasId + '_fsm_alphabet_inputText';
+        var inputTextElt = document.getElementById(inputTextId);
+        fsmAlphabetContainer = inputTextElt;
+        if(!inputTextElt) return false;
+
+        inputTextElt.placeholder = "FSM alphabet: comma-separated string";
+        inputTextElt.style.position = 'absolute';
+        inputTextElt.style.top =  (canvasRectTop + 10) + 'px';
+        inputTextElt.style.left = (canvasRectLeft + 10) + 'px';
+        inputTextElt.style.width = (canvas.width * 0.7) + 'px';
+        inputTextElt.style.height = '20px';
+        return true;
+    }
+
+    function getFsmAlphabetStr() { return fsmAlphabetContainer ? fsmAlphabetContainer.value : ''; }
+    function setFsmAlphabetStr(str) { // doesn't matter if parameter is a string
+        if(fsmAlphabetContainer) {
+            fsmAlphabetContainer.value = str;
+            fsmAlphabetContainer.dispatchEvent(new CustomEvent('input')); // otherwise input-event callback won't be called
+        }
+    }
+    function setFsmAlphabetVisible(visible) {
+        if(fsmAlphabetContainer) fsmAlphabetContainer.style.display = visible ? 'block': 'none';
     }
 
     // Sets canvas and possibly resizes it. See setCanvasSize().
@@ -1238,10 +1280,11 @@ var Fsmvc = (function() {
         c.translate(0.5, 0.5);
 
         c.lineWidth = 1;
-        for(var i = 0; i < nodes.length; i++) {
+        var i = 0;
+        for(i = 0; i < nodes.length; i++) {
             nodes[i].draw(c, nodes[i] === selectedObject);
         }
-        for(var i = 0; i < links.length; i++) {
+        for(i = 0; i < links.length; i++) {
             links[i].draw(c, links[i] === selectedObject);
         }
         if(currentLink !== null) {
@@ -1257,6 +1300,8 @@ var Fsmvc = (function() {
         canvas.onmousedown = onCanvasMousedown; // see (1) below
         canvas.onmousemove = onCanvasMousemove; // see (1) below
         canvas.onmouseup = onCanvasMouseup; // see (1) below
+
+        fsmAlphabetContainer.oninput = onFsmAlphabetContainerUpdated;
 
         document.addEventListener('keydown', onDocumentKeydown);
         document.addEventListener('keyup', onDocumentKeyup);
@@ -1283,6 +1328,8 @@ var Fsmvc = (function() {
         canvas.onmousedown = null;
         canvas.onmousemove = null;
         canvas.onmouseup = null;
+
+        fsmAlphabetContainer.oninput = null;
 
         document.removeEventListener('keydown', onDocumentKeydown);
         document.removeEventListener('keyup', onDocumentKeyup);
@@ -1415,6 +1462,8 @@ var Fsmvc = (function() {
         }
     }
 
+    function onFsmAlphabetContainerUpdated(e) { saveBackupAuto(); }
+
     function onDocumentKeydown(e) {
         var key = crossBrowserKey(e);
 
@@ -1434,12 +1483,13 @@ var Fsmvc = (function() {
             return false;
         } else if(key === 46) { // delete key
             if(selectedObject !== null) {
-                for(var i = 0; i < nodes.length; i++) {
+                var i = 0;
+                for(i = 0; i < nodes.length; i++) {
                     if(nodes[i] === selectedObject) {
                         nodes.splice(i--, 1);
                     }
                 }
-                for(var i = 0; i < links.length; i++) {
+                for(i = 0; i < links.length; i++) {
                     if(links[i] === selectedObject || links[i].node === selectedObject || links[i].nodeA === selectedObject || links[i].nodeB === selectedObject) {
                         links[i].prepareRemovalFromCanvas();
                         links.splice(i--, 1);
@@ -1479,12 +1529,13 @@ var Fsmvc = (function() {
     }
 
     function selectObject(x, y) {
-        for(var i = 0; i < nodes.length; i++) {
+        var i = 0;
+        for(i = 0; i < nodes.length; i++) {
             if(nodes[i].containsPoint(x, y)) {
                 return nodes[i];
             }
         }
-        for(var i = 0; i < links.length; i++) {
+        for(i = 0; i < links.length; i++) {
             if(links[i].containsPoint(x, y)) {
                 return links[i];
             }
@@ -1609,13 +1660,15 @@ var Fsmvc = (function() {
 
     function fetchJsonObject() {
         var obj = {
+            'fsmAlphabet': getFsmAlphabetStr(),
             'nodes': [],
             'links': [],
         };
-        for(var i = 0; i < nodes.length; i++) {
+        var i = 0;
+        for(i = 0; i < nodes.length; i++) {
             obj.nodes.push(nodes[i].toJson());
         }
-        for(var i = 0; i < links.length; i++) {
+        for(i = 0; i < links.length; i++) {
             obj.links.push(links[i].toJson(nodes));
         }
         return obj;
@@ -1652,19 +1705,22 @@ var Fsmvc = (function() {
     // Loads object and draw().
     function loadJsonObject(obj) {
         // clear first
+        setFsmAlphabetStr('');
         nodes = [];
         links = [];
 
         // now load
         try {
-            for(var i = 0; i < obj.nodes.length; i++) {
+            setFsmAlphabetStr(obj.fsmAlphabet);
+            var i = 0;
+            for(i = 0; i < obj.nodes.length; i++) {
                 var objNode = obj.nodes[i];
                 var node = Node.fromJson(objNode);
                 if(node) {
                     nodes.push(node);
                 }
             }
-            for(var i = 0; i < obj.links.length; i++) {
+            for(i = 0; i < obj.links.length; i++) {
                 var objLink = obj.links[i];
                 var link = null;
                 if(objLink.type === 'Link') {
@@ -1791,7 +1847,9 @@ var Fsmvc = (function() {
             }
         }
 
-        // Returns an array of characters from the given comma-separated string.
+        // Builds an array of characters from the given comma-separated string
+        // and returns an object hosting several properties (see source code).
+        //
         // This function is meant to be used when working with finite state
         // machines, in order to convert condensed transition inputs (like
         // "a, b, c") to distinct ones ("a", "b" and "c"). Thus it might also be
@@ -1806,10 +1864,25 @@ var Fsmvc = (function() {
         //     "1,2 , '3', ' ' "         | ["1", "2", "3", " "]           | Success: whitespaces are trimmed unless put in single quotes
         //     "',', ';', ;, ''', ', \"" | [",", ";", ";", "'", "'", """] | Success: single quotes do not appear in output array
         //                               |                                |          note that they are required for space and comma only
-        // An optional config object might be passed as parameter to set custom
-        // options or hold a boolean success/failure flag. See source code.
-        function splitString(str, config) {
-            var chars = [];
+        function splitString(str) {
+            var retVal = {
+                'success': false,             // is string successfully splitted?
+                'chars': [],                  // array of characters
+                'charsObj': {},               // object with each character as property
+                                              //     - you might need this in case you don't want
+                                              //       to walk through array to find an entry
+                'strIsWhitespaceOnly': false, // is string made of whitespace characters only?
+                'strHasDuplicates': false,    // does string contain duplicates?
+            };
+
+            function pushCharFromStr(s) {
+                var c = s.length === 3 ? s[1] : s[0]; // either '<char>' or <char>
+                retVal.chars.push(c);
+                if(retVal.charsObj[c]) {
+                    retVal.strHasDuplicates = true;
+                }
+                retVal.charsObj[c] = true;
+            }
 
             var strIsWhitespaceOnly = false;
             var matches = str.match(/^\s*$|^\s*('.'|[^,\s])\s*((?:,\s*(?:'.'|[^,\s])\s*)*)$/); // see (1) below
@@ -1819,26 +1892,22 @@ var Fsmvc = (function() {
                 var group1 = matches[1]; // first capturing group related to match
                 var group2 = matches[2]; // second capturing group related to match
                 if(group1) {
-                    chars.push(group1.length === 3 ? group1[1] : group1[0]); // either '<char>' or <char>
+                    pushCharFromStr(group1);
                     strIsWhitespaceOnly = false;
                 }
                 if(group2) {
                     matches = group2.match(/,\s*(?:'.'|[^,\s])\s*/g); // see (2) below
-                    for(var i=0; i<matches.length; i++) {
+                    for(var i = 0; i < matches.length; i++) {
                         var s = matches[i].substring(1).trim();
-                        chars.push(s.length === 3 ? s[1] : s[0]); // either '<char>' or <char>
+                        pushCharFromStr(s);
                     }
                 }
             }
 
-            if(config) {
-                config.success = (matches !== null); // add a property to object
-                if(config.failsForWhitespacesInput && strIsWhitespaceOnly) { // if property is defined and true-alike
-                    config.success = false;
-                }
-            }
+            retVal.success = (matches !== null);
+            retVal.strIsWhitespaceOnly = strIsWhitespaceOnly;
 
-            return chars;
+            return retVal;
 
             // (1) You can test the regex using online testers. It is built as follows.
             //     Let S be the regex for a whitespace:\s
@@ -1873,27 +1942,46 @@ var Fsmvc = (function() {
             //     just match as many times as possible using the global modifier (g).
         }
 
-        // Builds a finite state machine model from canvas content and returns
-        // it. The returned model might be invalid (see its 'errors' property).
-        // The ensureInitialState parameter tells whether FSM must be considered
-        // invalid in case it doesn't contain any initial state. It defaults to
-        // true.
+        // Builds and returns a FSM model from canvas content. The returned
+        // model might be invalid (see its 'errors' property). Besides here is
+        // what to know about the expected parameters.
+        //     - ensureInitialState: tells whether FSM must be considered invalid
+        //                           in case it doesn't contain any initial
+        //                           state. Defaults to true.
         function buildFsmModel(ensureInitialState) {
             var fsmObj = {
-                'errors': [], // list of errors if any
+                'alphabet': [],      // array of inputs/letters
+                'errors': [],        // array of errors if any
                 'states': {
-                    'all': {}, // key/value pairs:
-                               //     - key is the id of a state (built from node text in canvas)
-                               //     - value is a node object in canvas (won't be null if FSM is valid)
-                    'initial': [], // array of state ids
+                    'all': {},       // key/value pairs:
+                                     //     - key is the id of a state (built from node text in canvas)
+                                     //     - value is a node object in canvas (won't be null if FSM is valid)
+                    'initial': [],   // array of state ids
                     'accepting': [], // array of state ids
                 },
-                'transitions': {}, // can be accessed as follows:
-                                   //     - transitions[<state_id>] returns a transition object
-                                   //     - transitions[<state_id>][<input>] returns undefined or a non-emty array of state ids
+                'transitions': {},   // can be accessed as follows:
+                                     //     - transitions[<state_id>] returns a transition object
+                                     //     - transitions[<state_id>][<input>] returns undefined or a possibly emty array of state ids
             };
 
-            for(var i = 0; i < nodes.length; i++) {
+            var i = 0;
+            var invalidCommaSeparatedExplanation = "Here is a valid example using simple quotes when necessary: "
+                                                 + "a, 0, -, ', \", ' ', ','.";
+
+            var alphabetSplitted = splitString(getFsmAlphabetStr());
+            if(alphabetSplitted.success) {
+                if(alphabetSplitted.strHasDuplicates) {
+                    fsmObj.errors.push('Alphabet must not contain duplicates.');
+                }
+                else {
+                    fsmObj.alphabet = alphabetSplitted.chars;
+                }
+            }
+            else {
+                fsmObj.errors.push('Alphabet is not a valid comma-separated string. ' + invalidCommaSeparatedExplanation);
+            }
+
+            for(i = 0; i < nodes.length; i++) {
                 var node = nodes[i];
                 var stateId = convertLatexShortcuts(node.text.trim());
                 if(stateId === '') {
@@ -1922,30 +2010,34 @@ var Fsmvc = (function() {
                 }
             }
 
-            for(var i = 0; i < links.length; i++) {
+            for(i = 0; i < links.length; i++) {
                 var link = links[i];
                 if(link instanceof Link || link instanceof SelfLink) {
                     var linkText = convertLatexShortcuts(link.text.trim());
                     var linkNodes = link.getTwoExtremityNodes();
                     var transitionState1Id = convertLatexShortcuts(linkNodes[0].text.trim()); // so that state id can match with one previously saved
                     var transitionState2Id = convertLatexShortcuts(linkNodes[1].text.trim()); // same here
-                    var transitionInputsConfig = {'failsForWhitespacesInput': true};
-                    var transitionInputs = splitString(linkText, transitionInputsConfig);
-                    if(transitionInputsConfig.success) {
+                    var transitionInputsSplitted = splitString(linkText);
+                    if(transitionInputsSplitted.success && !transitionInputsSplitted.strIsWhitespaceOnly) {
                         var transitionObj = fsmObj.transitions[transitionState1Id];
-                        for(var j = 0; j < transitionInputs.length; j++) {
-                            var input = transitionInputs[j];
+                        for(var j = 0; j < transitionInputsSplitted.chars.length; j++) {
+                            var input = transitionInputsSplitted.chars[j];
                             if(transitionObj[input] === undefined) {
                                 transitionObj[input] = [];
                             }
-                            transitionObj[input].push(transitionState2Id);
+
+                            if(alphabetSplitted.charsObj[input]) {
+                                transitionObj[input].push(transitionState2Id);
+                            }
+                            else {
+                                fsmObj.errors.push(" Transition input '{0}' is not declared in alphabet.".format(input));
+                            }
                         }
                     }
                     else {
                         fsmObj.errors.push(
                             "Transition ('{0}', '{1}', '{2}') ".format(transitionState1Id, linkText, transitionState2Id)
-                          + "has an invalid comma-separated input string. Here is a valid example using simple "
-                          + "quotes when necessary: a, 0, -, ', \", ' ', ','."
+                          + "has an invalid comma-separated input string. " + invalidCommaSeparatedExplanation
                         );
                     }
                 }
@@ -1954,11 +2046,36 @@ var Fsmvc = (function() {
             return fsmObj;
         }
 
+        // Builds and returns the state-transition table of the given FSM model.
+        // The returned value is an Html <table> element and model must
+        // originate from buildFsmModel().
+        function buildFsmTransitionTable(model) {
+            var theadContent = '';
+            var tbodyContent = '';
+
+            if(model.errors.length === 0) {
+                // TODO
+                tbodyContent = 'TODO';
+            }
+            else {
+                theadContent = 'Finite state machine is not valid.';
+            }
+
+            return '<!-- FSM State-Transition Table\n'
+                 + '     Can be viewed using online Html viewers -->\n'
+                 + '<table>\n'
+                 + '    <thead>' + theadContent + '</thead>\n'
+                 + '    <tbody>' + tbodyContent + '</tbody>\n'
+                 + '</table>'
+            ;
+        }
+
         return {
             'setNodesProps': setNodesProps,
             'setLinksProps': setLinksProps,
             'splitString': splitString,
             'buildFsmModel': buildFsmModel,
+            'buildFsmTransitionTable': buildFsmTransitionTable,
         };
     })();
 
@@ -1969,7 +2086,7 @@ var Fsmvc = (function() {
             window.alert(msg + "\n\n" + sideNote);
         }
 
-        // The returned element can be an Html textarea.
+        // The returned element can be an Html <textarea> element.
         function getOutputElt() {
             return document.getElementById(quickTestOutputId);
         }
@@ -2039,8 +2156,8 @@ var Fsmvc = (function() {
             clear();
         }
 
-        function validateAsFsm() {
-            var model = algorithms.buildFsmModel();
+        // The model parameter must originate from algorithms.buildFsmModel().
+        function checkFsm(model) {
             if(model.errors.length === 0) {
                 outputText("Finite state machine is valid.");
             }
@@ -2053,6 +2170,11 @@ var Fsmvc = (function() {
             }
         }
 
+        // The model parameter must originate from algorithms.buildFsmModel().
+        function outputFsmTransitionTable(model) {
+            outputText(algorithms.buildFsmTransitionTable(model));
+        }
+
         function switchConfig(type) {
             setConfigFor(type);
             restoreBackup(config.global.autoBackupId);
@@ -2063,6 +2185,7 @@ var Fsmvc = (function() {
             'setOutputEltVisible': setOutputEltVisible,
             'switchOutputEltVisibility': switchOutputEltVisibility,
 
+            'outputText': outputText,
             'outputJson': outputJson,
             'outputPng': outputPng,
             'outputSvg': outputSvg,
@@ -2071,7 +2194,8 @@ var Fsmvc = (function() {
             'loadJsonFromOutputElt': loadJsonFromOutputElt,
 
             'clearContent': clearContent,
-            'validateAsFsm': validateAsFsm,
+            'checkFsm': checkFsm,
+            'outputFsmTransitionTable': outputFsmTransitionTable,
             'switchConfig': switchConfig,
         };
     })();

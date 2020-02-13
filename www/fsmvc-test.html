@@ -15,15 +15,6 @@ h1 {
     font: bold italic 50px Georgia, serif;
 }
 
-canvas {
-    display: block;
-    max-width: 800px;
-    background: white;
-    border-radius: 20px;
-    -moz-border-radius: 20px;
-    margin: 10px auto;
-}
-
 a {
     color: black;
 }
@@ -51,7 +42,16 @@ p {
     text-align: center;
 }
 
-textarea {
+#fsmvc_quickTest_canvasId {
+    display: block;
+    max-width: 800px;
+    background: white;
+    border-radius: 20px;
+    -moz-border-radius: 20px;
+    margin: 10px auto;
+}
+
+#fsmvc_quickTest_outputId {
     display: none;
     width: 75%;
     height: 400px;
@@ -114,6 +114,7 @@ if (typeof btoa == 'undefined') {
         <canvas id="fsmvc_quickTest_canvasId" width="800" height="600">
             <span class="error">Your browser does not support<br>the HTML5 &lt;canvas&gt; element</span>
         </canvas>
+        <input type="text" id="fsmvc_quickTest_canvasId_fsm_alphabet_inputText" value="">
         <div>
             <p class="center">
                 <b>Export as:</b> <a href="javascript:Fsmvc.quickTest.outputJson()">JSON</a>
@@ -125,7 +126,6 @@ if (typeof btoa == 'undefined') {
                 &nbsp;-&nbsp;
                 <b>Others:</b> <a href="javascript:Fsmvc.quickTest.switchOutputEltVisibility()">Text Area</a>
                              | <a href="javascript:Fsmvc.quickTest.clearContent()">Clear</a>
-                             | <a href="javascript:Fsmvc.quickTest.validateAsFsm()">Validate As FSM</a>
                 <br />---<br />
                 <b>Switch to (*):</b>
                 <!-- The FSM radio button is selected by default because it matches fsmvc default config. -->
@@ -133,6 +133,9 @@ if (typeof btoa == 'undefined') {
                 <input type="radio" id="mode2" name="mode" value="digraph">     <label for="mode2">Di. Graph</label>
                 <input type="radio" id="mode3" name="mode" value="undigraph">   <label for="mode3">Undi. Graph</label>
                 <input type="radio" id="mode4" name="mode" value="array">       <label for="mode4">Array</label>
+                <br />---<br />
+                <b>FSM:</b> <a href="javascript:Fsmvc.quickTest.checkFsm(Fsmvc.algorithms.buildFsmModel())">Check</a>
+                          | <a href="javascript:Fsmvc.quickTest.outputFsmTransitionTable(Fsmvc.algorithms.buildFsmModel())">Transition Table</a>
             </p>
             <textarea id="fsmvc_quickTest_outputId"></textarea>
             <p>The big white box above is the network designer.&nbsp; Here's how to use it:</p>
