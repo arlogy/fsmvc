@@ -1479,8 +1479,8 @@ var Fsmvc = (function() {
                 draw();
             }
 
-            // backspace is a shortcut for the back button, but do NOT want to change pages
-            return false;
+            // backspace might be a shortcut for the back button and we do NOT want to change pages
+            e.preventDefault(); return false;
         } else if(key === 46) { // delete key
             if(selectedObject !== null) {
                 var i = 0;
@@ -1521,10 +1521,10 @@ var Fsmvc = (function() {
             draw();
 
             // don't let keys do their actions (like space scrolls down the page)
-            return false;
+            e.preventDefault(); return false;
         } else if(key === 8) {
-            // backspace is a shortcut for the back button, but do NOT want to change pages
-            return false;
+            // backspace might be a shortcut for the back button and we do NOT want to change pages
+            e.preventDefault(); return false;
         }
     }
 
