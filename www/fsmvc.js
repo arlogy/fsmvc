@@ -1157,8 +1157,7 @@ var Fsmvc = (function() {
     // Initializes canvas so that it is ready to interact with and returns
     // whether initialization is a success. The canvasId parameter is required
     // but canvasOptions is not: see setCanvas(). Also note that this function
-    // initializes FSM alphabet container based on canvas' properties. See
-    // initFsmAlphabetContainer().
+    // initializes FSM alphabet container: see initFsmAlphabetContainer().
     //
     // You don't need to call this function unless your canvas has a specific id
     // (i.e. you are not using the quick-test-canvas-id).
@@ -1178,14 +1177,14 @@ var Fsmvc = (function() {
         return canvasOk;
     }
 
-    // Initializes FSM alphabet container which is assumed to be an Html
-    // <input type="text"> element.
+    // Initializes FSM alphabet container from canvas' properties. Note that the
+    // alphabet container is assumed to be an Html <input type="text"> element.
     function initFsmAlphabetContainer(canvasId) {
         var canvasRect = canvas.getBoundingClientRect();
         var canvasRectTop = canvasRect.top + window.scrollY; // in case page is scrolled
         var canvasRectLeft = canvasRect.left + window.scrollX; // in case page is scrolled
 
-        var inputTextId = canvasId + '_fsm_alphabet_inputText';
+        var inputTextId = canvasId + '_fsm_alphabet';
         var inputTextElt = document.getElementById(inputTextId);
         fsmAlphabetContainer = inputTextElt;
         if(!inputTextElt) return false;
@@ -1950,18 +1949,34 @@ var Fsmvc = (function() {
         //                           state. Defaults to true.
         function buildFsmModel(ensureInitialState) {
             var fsmObj = {
-                'alphabet': [],      // array of inputs/letters
                 'errors': [],        // array of errors if any
+                'alphabet': [],      // array of inputs/letters
                 'states': {
-                    'all': {},       // key/value pairs:
-                                     //     - key is the id of a state (built from node text in canvas)
-                                     //     - value is a node object in canvas (won't be null if FSM is valid)
+                    'all': [],       // array of state ids
                     'initial': [],   // array of state ids
                     'accepting': [], // array of state ids
                 },
                 'transitions': {},   // can be accessed as follows:
                                      //     - transitions[<state_id>] returns a transition object
                                      //     - transitions[<state_id>][<input>] returns undefined or a possibly emty array of state ids
+                'canvas': {
+                    'nodes': {},     // key/value pairs:
+                                     //     - key is the id of a state
+                                     //     - value is a node object in canvas (always defined when FSM is valid)
+                    'links': {       // use the get() function to access any link supporting a transition
+                                     //     - the returned value might be undefined
+                        'get': function(fromStateId, input, toStateId) {
+                            return this._values[this._idOf(fromStateId, input, toStateId)];
+                        },
+                        '_values': {},
+                        '_set': function(fromStateId, input, toStateId, linkObj) {
+                            this._values[this._idOf(fromStateId, input, toStateId)] = linkObj;
+                        },
+                        '_idOf': function(fromStateId, input, toStateId) {
+                            return fromStateId + '-' + input + '-' + toStateId;
+                        },
+                    },
+                },
             };
 
             var i = 0;
@@ -1988,11 +2003,12 @@ var Fsmvc = (function() {
                     fsmObj.errors.push("The id of a state is empty.");
                 }
                 else {
-                    if(fsmObj.states.all[stateId] !== undefined) {
+                    if(fsmObj.canvas.nodes[stateId] !== undefined) {
                         fsmObj.errors.push("State '" + stateId + "' is declared more than once.");
                     }
                     else {
-                        fsmObj.states.all[stateId] = node;
+                        fsmObj.canvas.nodes[stateId] = node;
+                        fsmObj.states.all.push(stateId);
                         if(node.isInitialState) {
                             fsmObj.states.initial.push(stateId);
                         }
@@ -2028,9 +2044,10 @@ var Fsmvc = (function() {
 
                             if(alphabetSplitted.charsObj[input]) {
                                 transitionObj[input].push(transitionState2Id);
+                                fsmObj.canvas.links._set(transitionState1Id, input, transitionState2Id, link);
                             }
                             else {
-                                fsmObj.errors.push(" Transition input '{0}' is not declared in alphabet.".format(input));
+                                fsmObj.errors.push("Transition input '{0}' is not declared in alphabet.".format(input));
                             }
                         }
                     }
@@ -2046,28 +2063,100 @@ var Fsmvc = (function() {
             return fsmObj;
         }
 
-        // Builds and returns the state-transition table of the given FSM model.
-        // The returned value is an Html <table> element and model must
-        // originate from buildFsmModel().
-        function buildFsmTransitionTable(model) {
-            var theadContent = '';
-            var tbodyContent = '';
+        // Builds the state-transition table of the given FSM model which must
+        // originate from buildFsmModel(). Returns an object with two properties:
+        // an Html <table> element and a convenient CSS style (see source code).
+        //
+        // An optional htmlAttrs object might also be passed as parameter in
+        // order to add specific Html attributes (id, class, ...) to several
+        // table elements (see source code).
+        function buildFsmTransitionTable(model, htmlAttrs) {
+            var theadContent = [];
+            var tbodyContent = [];
+            var i = 0;
 
             if(model.errors.length === 0) {
-                // TODO
-                tbodyContent = 'TODO';
+                theadContent.push('<tr>');
+                theadContent.push('    <td></td>');
+                theadContent.push('    <td></td>');
+                for(i = 0; i < model.alphabet.length; i++) {
+                    theadContent.push('    <td>' + model.alphabet[i] + '</td>');
+                }
+                theadContent.push('</tr>');
+
+                var stateIds = model.states.all;
+                for(i = 0; i < stateIds.length; i++) {
+                    var sId = stateIds[i];
+                    var sIdInitial = (model.states.initial.indexOf(sId) !== -1);
+                    var sIdAccepting = (model.states.accepting.indexOf(sId) !== -1);
+                    var sIdMarkers = [];
+                    if(sIdInitial) sIdMarkers.push('->'); // this marker ias also used in table caption
+                    if(sIdAccepting) sIdMarkers.push('*'); // this marker is also used in table caption
+                    var transitionObj = model.transitions[sId];
+                    tbodyContent.push('<tr>');
+                    tbodyContent.push('    <td>' + sIdMarkers.join(' ') + '</td>');
+                    tbodyContent.push('    <td>' + sId + '</td>');
+                    for(var j = 0; j < model.alphabet.length; j++) {
+                        var input = model.alphabet[j];
+                        var arrayOrUndefined = transitionObj[input];
+                        var tableEntry = (arrayOrUndefined === undefined ? '' : arrayOrUndefined.join(', '));
+                        tbodyContent.push('    <td>' + tableEntry + '</td>');
+                    }
+                    tbodyContent.push('</tr>');
+                }
             }
             else {
-                theadContent = 'Finite state machine is not valid.';
+                theadContent.push('<tr><td>Finite state machine is not valid</td></tr>');
+                tbodyContent.push('<tr><td>No content available</td></tr>');
             }
 
-            return '<!-- FSM State-Transition Table\n'
-                 + '     Can be viewed using online Html viewers -->\n'
-                 + '<table>\n'
-                 + '    <thead>' + theadContent + '</thead>\n'
-                 + '    <tbody>' + tbodyContent + '</tbody>\n'
-                 + '</table>'
+            var tAttrs = '';
+            var theadAttrs = '';
+            var tbodyAttrs = '';
+            if(htmlAttrs) {
+                if('table' in htmlAttrs) tAttrs = htmlAttrs.table; // content (if any) must start with a space
+                if('thead' in htmlAttrs) theadAttrs = htmlAttrs.thead; // content (if any) must start with a space
+                if('tbody' in htmlAttrs) tbodyAttrs = htmlAttrs.tbody; // content (if any) must start with a space
+            }
+
+            var tContent =
+                '<!-- FSM State-Transition Table - HTML\n'
+              + '         Can be saved to *.html file along with the CSS code\n'
+              + '         Can also be viewed using HTML online viewers with support for CSS -->\n'
+              + '<table{0}>\n'.format(tAttrs)
+              + '    <caption>->: initial state<br />*: accepting state</caption>\n' // legend for markers used in table content
+              + '    <thead{0}>\n'.format(theadAttrs)
+              + '        ' + theadContent.join('\n        ') + '\n'
+              + '    </thead>\n'
+              + '    <tbody{0}>\n'.format(tbodyAttrs)
+              + '        ' + tbodyContent.join('\n        ') + '\n'
+              + '    </tbody>\n'
+              + '</table>\n'
             ;
+
+            var tCss =
+                '<!-- FSM State-Transition Table - Quick CSS -->\n'
+              + '<style>\n'
+              + '    caption {\n'
+              + '        caption-side: bottom;\n'
+              + '    }\n'
+              + '    table, td {\n'
+              + '        border: 1px solid black;\n'
+              + '    }\n'
+              + '    td {\n'
+              + '        text-align: center;\n'
+              + '    }\n'
+              + '    thead, tfoot{0} {\n'.format(model.errors.length === 0 ? ', tr td:first-child, tr td:nth-child(2)' : '')
+              + '        background-color: black;\n'
+              + '        color: white;\n'
+              + '    }\n'
+              + '</style>\n'
+            ;
+
+            return {
+                'table': tContent,
+                'css': tCss,
+            };
         }
 
         return {
@@ -2172,7 +2261,8 @@ var Fsmvc = (function() {
 
         // The model parameter must originate from algorithms.buildFsmModel().
         function outputFsmTransitionTable(model) {
-            outputText(algorithms.buildFsmTransitionTable(model));
+            var obj = algorithms.buildFsmTransitionTable(model);
+            outputText(obj.table + '\n' + obj.css);
         }
 
         function switchConfig(type) {
