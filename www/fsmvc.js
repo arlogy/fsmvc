@@ -1088,7 +1088,7 @@ var Fsmvc = (function() {
     var listenersStarted = false;
 
     var canvas = null;
-    var fsmAlphabetContainer = null;
+    var fsmAlphabetContainer = null; // optional and must be checked each time before use
     var nodes = [];
     var links = [];
 
@@ -1156,19 +1156,22 @@ var Fsmvc = (function() {
 
     // Initializes canvas so that it is ready to interact with and returns
     // whether initialization is a success. The canvasId parameter is required
-    // but canvasOptions is not: see setCanvas(). Also note that this function
-    // initializes FSM alphabet container: see initFsmAlphabetContainer().
+    // but options is not. Also note that this function calls setCanvas() and
+    // initFsmAlphabetContainer() whose documentation we recommend reading.
     //
     // You don't need to call this function unless your canvas has a specific id
     // (i.e. you are not using the quick-test-canvas-id).
-    function initCanvas(canvasId, canvasOptions) {
+    function initCanvas(canvasId, options) {
+        var optionsCanvas = options ? options.canvas : undefined;
+        var optionsFsmAlphabetContainer = options ? options.fsmAlphabetContainer : undefined;
+
         if(canvas) {
             stopListeners();
         }
 
-        var canvasOk = setCanvas(canvasId, canvasOptions);
+        var canvasOk = setCanvas(canvasId, optionsCanvas);
         if(canvasOk) {
-            initFsmAlphabetContainer(canvasId);
+            initFsmAlphabetContainer(canvasId, optionsFsmAlphabetContainer);
             if(!restoreBackupAuto()) {
                 draw(); // we draw() only when restoreBackupAuto() didn't do so
             }
@@ -1177,10 +1180,14 @@ var Fsmvc = (function() {
         return canvasOk;
     }
 
-    // Initializes FSM alphabet container from canvas' properties. Note that the
-    // alphabet container is assumed to be an Html <input type="text"> element.
-    function initFsmAlphabetContainer(canvasId) {
-        var canvasRect = canvas.getBoundingClientRect();
+    // Initializes FSM alphabet container from canvas' properties and returns
+    // whether initialization is a success. Note that canvas must be visible
+    // and alphabet container (if any) is assumed to be an Html <input type="text">
+    // element. And this function is only called when canvas is successfully
+    // initialized.
+    function initFsmAlphabetContainer(canvasId, options) {
+        if(options && options.showCanvas) options.showCanvas(); // in case one need to show canvas (using custom code)
+        var canvasRect = canvas.getBoundingClientRect(); // computation will be wrong if canvas is invisible
         var canvasRectTop = canvasRect.top + window.scrollY; // in case page is scrolled
         var canvasRectLeft = canvasRect.left + window.scrollX; // in case page is scrolled
 
@@ -1189,12 +1196,20 @@ var Fsmvc = (function() {
         fsmAlphabetContainer = inputTextElt;
         if(!inputTextElt) return false;
 
+        var spacingTop = 10;
+        var spacingLeft = 10;
+        var height = 20;
+        if(options) {
+            if('spacingTop' in options) spacingTop = options.spacingTop;
+            if('spacingLeft' in options) spacingLeft = options.spacingLeft;
+            if('height' in options) height = options.height;
+        }
         inputTextElt.placeholder = "FSM alphabet: comma-separated string";
         inputTextElt.style.position = 'absolute';
-        inputTextElt.style.top =  (canvasRectTop + 10) + 'px';
-        inputTextElt.style.left = (canvasRectLeft + 10) + 'px';
-        inputTextElt.style.width = (canvas.width * 0.7) + 'px';
-        inputTextElt.style.height = '20px';
+        inputTextElt.style.top =  (canvasRectTop + spacingTop) + 'px';
+        inputTextElt.style.left = (canvasRectLeft + spacingLeft) + 'px';
+        inputTextElt.style.width = (canvas.width * 0.75) + 'px';
+        inputTextElt.style.height = height + 'px';
         return true;
     }
 
@@ -1219,8 +1234,8 @@ var Fsmvc = (function() {
     // Sets canvas size in case the options object has the expected properties.
     function setCanvasSize(options) {
         if(canvas && options && 'width' in options && 'height' in options) {
-            var canvasWidth = options.width;
-            var canvasHeight = options.height;
+            var canvasWidth = options.width; // new width
+            var canvasHeight = options.height; // new height
             if(options.fitSizeToScreen === true) {
                 var screenObj = window.screen;
                 if(screenObj) {
@@ -1252,9 +1267,9 @@ var Fsmvc = (function() {
         }
     }
 
-    // Moves nodes into canvas visible area. You might need to call this
-    // function to make sure nodes are visible (in case canvas is always resized
-    // to fit the user's screen).
+    // Moves nodes into canvas visible area but doesn't draw(). You might need
+    // to call this function to make sure nodes are visible (in case canvas is
+    // resized to fit the user's screen).
     function moveNodesIntoCanvasVisibleArea() {
         // We assume that canvas is large and long enough for nodes to be fully
         // visible after they are repositioned.
@@ -1265,7 +1280,6 @@ var Fsmvc = (function() {
             if(node.y < node.radius) node.y = node.radius;
             if(node.y > canvas.height - node.radius) node.y = canvas.height - node.radius;
         }
-        draw();
     }
 
     function draw() {
@@ -1300,7 +1314,7 @@ var Fsmvc = (function() {
         canvas.onmousemove = onCanvasMousemove; // see (1) below
         canvas.onmouseup = onCanvasMouseup; // see (1) below
 
-        fsmAlphabetContainer.oninput = onFsmAlphabetContainerUpdated;
+        if(fsmAlphabetContainer) fsmAlphabetContainer.oninput = onFsmAlphabetContainerUpdated;
 
         document.addEventListener('keydown', onDocumentKeydown);
         document.addEventListener('keyup', onDocumentKeyup);
@@ -1320,15 +1334,14 @@ var Fsmvc = (function() {
         //     this controller).
     }
 
-    // Stops listening to mouse/key events and resets related variables. Then
-    // draw().
+    // Stops listening to mouse/key events, resets related variables and draw().
     function stopListeners() {
         canvas.ondblclick = null;
         canvas.onmousedown = null;
         canvas.onmousemove = null;
         canvas.onmouseup = null;
 
-        fsmAlphabetContainer.oninput = null;
+        if(fsmAlphabetContainer) fsmAlphabetContainer.oninput = null;
 
         document.removeEventListener('keydown', onDocumentKeydown);
         document.removeEventListener('keyup', onDocumentKeyup);
@@ -1694,19 +1707,17 @@ var Fsmvc = (function() {
         return exporter.toLaTeX();
     }
 
-    // Clears and draw().
+    // Clears but doesn't draw().
     function clear() {
+        setFsmAlphabetStr('');
         nodes = [];
         links = [];
-        draw();
     }
 
     // Loads object and draw().
     function loadJsonObject(obj) {
         // clear first
-        setFsmAlphabetStr('');
-        nodes = [];
-        links = [];
+        clear();
 
         // now load
         try {
@@ -1949,15 +1960,16 @@ var Fsmvc = (function() {
         //                           state. Defaults to true.
         function buildFsmModel(ensureInitialState) {
             var fsmObj = {
-                'errors': [],        // array of errors if any
-                'alphabet': [],      // array of inputs/letters
+                'errors': [],        // possibly empty array of errors
+
+                'alphabet': [],      // possibly empty array of inputs/letters
                 'states': {
-                    'all': [],       // array of state ids
-                    'initial': [],   // array of state ids
-                    'accepting': [], // array of state ids
+                    'all': [],       // possibly empty array of state ids
+                    'initial': [],   // possibly empty array of state ids
+                    'accepting': [], // possibly empty array of state ids
                 },
                 'transitions': {},   // can be accessed as follows:
-                                     //     - transitions[<state_id>] returns a transition object
+                                     //     - transitions[<state_id>] returns a transition object (always defined when FSM is invalid)
                                      //     - transitions[<state_id>][<input>] returns undefined or a possibly emty array of state ids
                 'canvas': {
                     'nodes': {},     // key/value pairs:
@@ -2036,6 +2048,7 @@ var Fsmvc = (function() {
                     var transitionInputsSplitted = splitString(linkText);
                     if(transitionInputsSplitted.success && !transitionInputsSplitted.strIsWhitespaceOnly) {
                         var transitionObj = fsmObj.transitions[transitionState1Id];
+                        if(!transitionObj) continue; // check transition object because FSM might be invalid
                         for(var j = 0; j < transitionInputsSplitted.chars.length; j++) {
                             var input = transitionInputsSplitted.chars[j];
                             if(transitionObj[input] === undefined) {
@@ -2243,6 +2256,7 @@ var Fsmvc = (function() {
 
         function clearContent() {
             clear();
+            draw();
         }
 
         // The model parameter must originate from algorithms.buildFsmModel().
