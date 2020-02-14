@@ -1182,20 +1182,22 @@ var Fsmvc = (function() {
 
     // Initializes FSM alphabet container from canvas' properties and returns
     // whether initialization is a success. Note that canvas must be visible
-    // and alphabet container (if any) is assumed to be an Html <input type="text">
-    // element. And this function is only called when canvas is successfully
-    // initialized.
+    // and alphabet container (if any) is assumed to be an Html
+    // <input type="text"> element.
     function initFsmAlphabetContainer(canvasId, options) {
-        if(options && options.showCanvas) options.showCanvas(); // in case one need to show canvas (using custom code)
-        var canvasRect = canvas.getBoundingClientRect(); // computation will be wrong if canvas is invisible
-        var canvasRectTop = canvasRect.top + window.scrollY; // in case page is scrolled
-        var canvasRectLeft = canvasRect.left + window.scrollX; // in case page is scrolled
+        if(!canvas) return false;
 
         var inputTextId = canvasId + '_fsm_alphabet';
         var inputTextElt = document.getElementById(inputTextId);
         fsmAlphabetContainer = inputTextElt;
         if(!inputTextElt) return false;
 
+        if(options && options.showCanvas) {
+            options.showCanvas(); // make sure canvas is visible (using custom code)
+        }
+        var canvasRect = canvas.getBoundingClientRect(); // computation will be wrong if canvas is invisible
+        var canvasRectTop = canvasRect.top + window.scrollY; // in case page is scrolled
+        var canvasRectLeft = canvasRect.left + window.scrollX; // in case page is scrolled
         var spacingTop = 10;
         var spacingLeft = 10;
         var height = 20;
@@ -1210,6 +1212,9 @@ var Fsmvc = (function() {
         inputTextElt.style.left = (canvasRectLeft + spacingLeft) + 'px';
         inputTextElt.style.width = (canvas.width * 0.75) + 'px';
         inputTextElt.style.height = height + 'px';
+        if(options && options.showAlphabet) {
+            options.showAlphabet(inputTextId); // make sure alphabet container is visible (in case it was hidden)
+        }
         return true;
     }
 
@@ -1221,7 +1226,9 @@ var Fsmvc = (function() {
         }
     }
     function setFsmAlphabetVisible(visible) {
-        if(fsmAlphabetContainer) fsmAlphabetContainer.style.display = visible ? 'block': 'none';
+        if(fsmAlphabetContainer) {
+            fsmAlphabetContainer.style.display = visible ? 'block': 'none';
+        }
     }
 
     // Sets canvas and possibly resizes it. See setCanvasSize().
@@ -1314,7 +1321,9 @@ var Fsmvc = (function() {
         canvas.onmousemove = onCanvasMousemove; // see (1) below
         canvas.onmouseup = onCanvasMouseup; // see (1) below
 
-        if(fsmAlphabetContainer) fsmAlphabetContainer.oninput = onFsmAlphabetContainerUpdated;
+        if(fsmAlphabetContainer) {
+            fsmAlphabetContainer.oninput = onFsmAlphabetContainerUpdated;
+        }
 
         document.addEventListener('keydown', onDocumentKeydown);
         document.addEventListener('keyup', onDocumentKeyup);
@@ -1341,7 +1350,9 @@ var Fsmvc = (function() {
         canvas.onmousemove = null;
         canvas.onmouseup = null;
 
-        if(fsmAlphabetContainer) fsmAlphabetContainer.oninput = null;
+        if(fsmAlphabetContainer) {
+            fsmAlphabetContainer.oninput = null;
+        }
 
         document.removeEventListener('keydown', onDocumentKeydown);
         document.removeEventListener('keyup', onDocumentKeyup);
@@ -1387,6 +1398,10 @@ var Fsmvc = (function() {
         selectedObject = selectObject(mouse.x, mouse.y);
         movingObject = false;
         originalClick = mouse;
+
+        if(shift && fsmAlphabetContainer) {
+            fsmAlphabetContainer.blur(); // remove focus
+        }
 
         if(selectedObject !== null) {
             if(shift && selectedObject instanceof Node) {
