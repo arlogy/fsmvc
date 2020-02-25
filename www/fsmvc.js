@@ -1190,34 +1190,46 @@ var Fsmvc = (function() {
         var inputTextId = canvasId + '_fsm_alphabet';
         var inputTextElt = document.getElementById(inputTextId);
         fsmAlphabetContainer = inputTextElt;
-        if(!inputTextElt) return false;
-
-        if(options && options.showCanvas) {
-            options.showCanvas(); // make sure canvas is visible (using custom code)
+        if(!fsmAlphabetContainer) {
+            if('showCanvas' in options) { // make sure canvas is shown if expected
+                options.showCanvas();
+            }
+            return false;
         }
-        var canvasRect = canvas.getBoundingClientRect(); // computation will be wrong if canvas is invisible
-        var canvasRectTop = canvasRect.top + window.scrollY; // in case page is scrolled
-        var canvasRectLeft = canvasRect.left + window.scrollX; // in case page is scrolled
-        var spacingTop = 10;
-        var spacingLeft = 10;
+
         var height = 20;
         if(options) {
-            if('spacingTop' in options) spacingTop = options.spacingTop;
-            if('spacingLeft' in options) spacingLeft = options.spacingLeft;
             if('height' in options) height = options.height;
         }
-        inputTextElt.placeholder = "FSM alphabet: comma-separated string";
-        inputTextElt.style.position = 'absolute';
-        inputTextElt.style.top =  (canvasRectTop + spacingTop) + 'px';
-        inputTextElt.style.left = (canvasRectLeft + spacingLeft) + 'px';
-        inputTextElt.style.width = (canvas.width * 0.75) + 'px';
-        inputTextElt.style.height = height + 'px';
-        if(options && options.showAlphabet) {
-            options.showAlphabet(inputTextId); // make sure alphabet container is visible (in case it was hidden)
+        fsmAlphabetContainer.placeholder = "FSM alphabet: comma-separated string";
+        fsmAlphabetContainer.style.position = 'absolute';
+        tieFsmAlphabetCOntainerToCanvas(options);
+        fsmAlphabetContainer.style.width = (canvas.width * 0.75) + 'px';
+        fsmAlphabetContainer.style.height = height + 'px';
+        if(options && options.showAlphabet) { // make sure alphabet container is shown if expected
+            options.showAlphabet(inputTextId);
         }
         return true;
     }
 
+    function tieFsmAlphabetCOntainerToCanvas(options) {
+        if(!canvas || !fsmAlphabetContainer) return;
+
+        var spacingTop = 10;
+        var spacingLeft = 10;
+        if(options) {
+            if('spacingTop' in options) spacingTop = options.spacingTop;
+            if('spacingLeft' in options) spacingLeft = options.spacingLeft;
+            if('showCanvas' in options) { // make sure canvas is visible: see getBoundingClientRect()
+                options.showCanvas();
+            }
+        }
+        var canvasRect = canvas.getBoundingClientRect(); // computation will be wrong if canvas is invisible
+        var canvasRectTop = canvasRect.top + window.scrollY; // in case page is scrolled
+        var canvasRectLeft = canvasRect.left + window.scrollX; // in case page is scrolled
+        fsmAlphabetContainer.style.top =  (canvasRectTop + spacingTop) + 'px';
+        fsmAlphabetContainer.style.left = (canvasRectLeft + spacingLeft) + 'px';
+    }
     function getFsmAlphabetStr() { return fsmAlphabetContainer ? fsmAlphabetContainer.value : ''; }
     function setFsmAlphabetStr(str) { // doesn't matter if parameter is a string
         if(fsmAlphabetContainer) {
@@ -1334,13 +1346,7 @@ var Fsmvc = (function() {
         // (1) We didn't use addEventListener() because in Google Chrome 79.0.*
         //     canvas events are also propagated to surrounding text elements.
         //     As a result one can select text in page by double-clicking in
-        //     canvas for instance. Moreover Event.stopPropagation() doesn't
-        //     seem to work in Chrome. And dispatching events by first attaching
-        //     them to document or window must be done carefully so we don't
-        //     break the mouse-down event handler which returns true/false based
-        //     on custom logic... Anyways the workaround we use is effective and
-        //     simpler (even if we do discard any event handler set from outside
-        //     this controller).
+        //     canvas for instance.
     }
 
     // Stops listening to mouse/key events, resets related variables and draw().
@@ -1804,8 +1810,9 @@ var Fsmvc = (function() {
     // links while you have configured this controller not to accept links).
     function getContent() {
         return {
+            'fsmAlphabetStr': getFsmAlphabetStr(),
             'nodes': nodes,
-            'links': links, // you can use JavaScript instanceof to check link family
+            'links': links, // you can use the instanceof operator to check link family
                             // see getTypes()
         };
     }
@@ -1967,14 +1974,10 @@ var Fsmvc = (function() {
             //     just match as many times as possible using the global modifier (g).
         }
 
-        // Builds and returns a FSM model from canvas content. The returned
-        // model might be invalid (see its 'errors' property). Besides here is
-        // what to know about the expected parameters.
-        //     - ensureInitialState: tells whether FSM must be considered invalid
-        //                           in case it doesn't contain any initial
-        //                           state. Defaults to true.
-        function buildFsmModel(ensureInitialState) {
-            var fsmObj = {
+        // Returns an object with several properties, each described as per
+        // buildFsmModel().
+        function getEmptyFsmModel() {
+            return {
                 'errors': [],        // possibly empty array of errors
 
                 'alphabet': [],      // possibly empty array of inputs/letters
@@ -1982,10 +1985,41 @@ var Fsmvc = (function() {
                     'all': [],       // possibly empty array of state ids
                     'initial': [],   // possibly empty array of state ids
                     'accepting': [], // possibly empty array of state ids
+                    'isAnyInitialIn': function(stateIds) {
+                        for(var i = 0; i < stateIds.length; i++) {
+                            if(this.initial.indexOf(stateIds[i]) !== -1) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    },
+                    'isAnyAcceptingIn': function(stateIds) {
+                        for(var i = 0; i < stateIds.length; i++) {
+                            if(this.accepting.indexOf(stateIds[i]) !== -1) {
+                                return true;
+                            }
+                        }
+                        return false;
+                    },
+                    'getMarkers': function(initial, accepting) {
+                        var markers = [];
+                        if(initial) markers.push('->');
+                        if(accepting) markers.push('*');
+                        return markers;
+                    },
                 },
-                'transitions': {},   // can be accessed as follows:
-                                     //     - transitions[<state_id>] returns a transition object (always defined when FSM is invalid)
-                                     //     - transitions[<state_id>][<input>] returns undefined or a possibly emty array of state ids
+                'transitions': {
+                    'all': {},       // can be accessed as follows:
+                                     //     - all[<state_id>] returns a transition object
+                                     //                               (always defined when FSM is valid and state id known)
+                                     //     - all[<state_id>][<input>] returns undefined or a possibly emty array of state ids
+                    'get': function(fromStateId, input) { // this function is not used in buildFsmModel()
+                                                          // but can be used anywhere else
+                        var transitionObj = this.all[fromStateId];
+                        var arrayOrUndefined = transitionObj ? transitionObj[input] : [];
+                        return arrayOrUndefined === undefined ? [] : arrayOrUndefined;
+                    },
+                },
                 'canvas': {
                     'nodes': {},     // key/value pairs:
                                      //     - key is the id of a state
@@ -2005,6 +2039,16 @@ var Fsmvc = (function() {
                     },
                 },
             };
+        }
+
+        // Builds and returns a FSM model from canvas content. The returned
+        // model might be invalid (see its 'errors' property). Besides here is
+        // what to know about the expected parameters.
+        //     - ensureInitialState: tells whether FSM must be considered invalid
+        //                           in case it doesn't contain any initial
+        //                           state. Defaults to true.
+        function buildFsmModel(ensureInitialState) {
+            var fsmObj = getEmptyFsmModel();
 
             var i = 0;
             var invalidCommaSeparatedExplanation = "Here is a valid example using simple quotes when necessary: "
@@ -2042,7 +2086,7 @@ var Fsmvc = (function() {
                         if(node.isAcceptState) {
                             fsmObj.states.accepting.push(stateId);
                         }
-                        fsmObj.transitions[stateId] = {}; // transition object
+                        fsmObj.transitions.all[stateId] = {}; // transition object
                     }
                 }
             }
@@ -2062,7 +2106,7 @@ var Fsmvc = (function() {
                     var transitionState2Id = convertLatexShortcuts(linkNodes[1].text.trim()); // same here
                     var transitionInputsSplitted = splitString(linkText);
                     if(transitionInputsSplitted.success && !transitionInputsSplitted.strIsWhitespaceOnly) {
-                        var transitionObj = fsmObj.transitions[transitionState1Id];
+                        var transitionObj = fsmObj.transitions.all[transitionState1Id];
                         if(!transitionObj) continue; // check transition object because FSM might be invalid
                         for(var j = 0; j < transitionInputsSplitted.chars.length; j++) {
                             var input = transitionInputsSplitted.chars[j];
@@ -2091,9 +2135,9 @@ var Fsmvc = (function() {
             return fsmObj;
         }
 
-        // Builds the state-transition table of the given FSM model which must
-        // originate from buildFsmModel(). Returns an object with two properties:
-        // an Html <table> element and a convenient CSS style (see source code).
+        // Builds the state-transition table of the given FSM model. Returns an
+        // object with two properties: an Html <table> element and a convenient
+        // CSS style (see source code).
         //
         // An optional htmlAttrs object might also be passed as parameter in
         // order to add specific Html attributes (id, class, ...) to several
@@ -2104,6 +2148,7 @@ var Fsmvc = (function() {
             var i = 0;
 
             if(model.errors.length === 0) {
+                // in <thead>: we use <td> instead of <th> so that CSS is less verbose
                 theadContent.push('<tr>');
                 theadContent.push('    <td></td>');
                 theadContent.push('    <td></td>');
@@ -2117,18 +2162,13 @@ var Fsmvc = (function() {
                     var sId = stateIds[i];
                     var sIdInitial = (model.states.initial.indexOf(sId) !== -1);
                     var sIdAccepting = (model.states.accepting.indexOf(sId) !== -1);
-                    var sIdMarkers = [];
-                    if(sIdInitial) sIdMarkers.push('->'); // this marker ias also used in table caption
-                    if(sIdAccepting) sIdMarkers.push('*'); // this marker is also used in table caption
-                    var transitionObj = model.transitions[sId];
+                    var sIdMarkers = model.states.getMarkers(sIdInitial, sIdAccepting);
                     tbodyContent.push('<tr>');
                     tbodyContent.push('    <td>' + sIdMarkers.join(' ') + '</td>');
                     tbodyContent.push('    <td>' + sId + '</td>');
                     for(var j = 0; j < model.alphabet.length; j++) {
                         var input = model.alphabet[j];
-                        var arrayOrUndefined = transitionObj[input];
-                        var tableEntry = (arrayOrUndefined === undefined ? '' : arrayOrUndefined.join(', '));
-                        tbodyContent.push('    <td>' + tableEntry + '</td>');
+                        tbodyContent.push('    <td>' + model.transitions.get(sId, input).join(', ') + '</td>');
                     }
                     tbodyContent.push('</tr>');
                 }
@@ -2142,43 +2182,60 @@ var Fsmvc = (function() {
             var theadAttrs = '';
             var tbodyAttrs = '';
             if(htmlAttrs) {
-                if('table' in htmlAttrs) tAttrs = htmlAttrs.table; // content (if any) must start with a space
-                if('thead' in htmlAttrs) theadAttrs = htmlAttrs.thead; // content (if any) must start with a space
-                if('tbody' in htmlAttrs) tbodyAttrs = htmlAttrs.tbody; // content (if any) must start with a space
+                if('table' in htmlAttrs && htmlAttrs.table !== '') tAttrs = ' ' + htmlAttrs.table;
+                if('thead' in htmlAttrs && htmlAttrs.thead !== '') theadAttrs = ' ' + htmlAttrs.thead;
+                if('tbody' in htmlAttrs && htmlAttrs.tbody !== '') tbodyAttrs = ' ' + htmlAttrs.tbody;
             }
 
+            var tId = '';
+            var tIdMatch = tAttrs.match(/id="([^"]+)"/); // regex is quite permissive but very simple
+            // also note that the captured id (if any) is used as is in CSS: its characters are not escaped in any way
+            if(tIdMatch !== null) {
+                tId = tIdMatch[1];
+            }
+
+            var stateMarkers = model.states.getMarkers(true, true); // all possible markers
             var tContent =
                 '<!-- FSM State-Transition Table - HTML\n'
               + '         Can be saved to *.html file along with the CSS code\n'
               + '         Can also be viewed using HTML online viewers with support for CSS -->\n'
               + '<table{0}>\n'.format(tAttrs)
-              + '    <caption>->: initial state<br />*: accepting state</caption>\n' // legend for markers used in table content
+              + '    <caption>{0}: initial state<br />{1}: accepting state</caption>\n'
+                .format(stateMarkers[0], stateMarkers[1]) // legend for markers used in table content
               + '    <thead{0}>\n'.format(theadAttrs)
               + '        ' + theadContent.join('\n        ') + '\n'
               + '    </thead>\n'
               + '    <tbody{0}>\n'.format(tbodyAttrs)
               + '        ' + tbodyContent.join('\n        ') + '\n'
               + '    </tbody>\n'
-              + '</table>\n'
+              + '</table>'
             ;
 
+            var tIdSelectorSpaced = tId === '' ? '' : '#{0} '.format(tId);
+            var tIdSelectorBracketed = tId === '' ? '' : '[id={0}]'.format(tId);
+            var tCssVar = model.errors.length === 0 ?
+                          ', {0}tr td:first-child, {0}tr td:nth-child(2)'.format(tIdSelectorSpaced) :
+                          ''
+            ;
             var tCss =
                 '<!-- FSM State-Transition Table - Quick CSS -->\n'
-              + '<style>\n'
-              + '    caption {\n'
+              + '<style type="text/css">\n'
+              + '    {0}caption {\n'.format(tIdSelectorSpaced)
               + '        caption-side: bottom;\n'
               + '    }\n'
-              + '    table, td {\n'
-              + '        border: 1px solid black;\n'
+              + '    table{0}, {1}td {\n'.format(tIdSelectorBracketed, tIdSelectorSpaced)
+              + '        border: 1px solid grey;\n'
               + '    }\n'
-              + '    td {\n'
+              + '    {0}td {\n'.format(tIdSelectorSpaced)
               + '        text-align: center;\n'
+              + '        color: #333;\n'
+              + '        width: {0}%;\n'.format(100/(2+model.alphabet.length))
               + '    }\n'
-              + '    thead, tfoot{0} {\n'.format(model.errors.length === 0 ? ', tr td:first-child, tr td:nth-child(2)' : '')
-              + '        background-color: black;\n'
+              + '    {0}thead td{1} {\n'.format(tIdSelectorSpaced, tCssVar)
+              + '        background-color: #333;\n'
               + '        color: white;\n'
               + '    }\n'
-              + '</style>\n'
+              + '</style>'
             ;
 
             return {
@@ -2191,6 +2248,7 @@ var Fsmvc = (function() {
             'setNodesProps': setNodesProps,
             'setLinksProps': setLinksProps,
             'splitString': splitString,
+            'getEmptyFsmModel': getEmptyFsmModel,
             'buildFsmModel': buildFsmModel,
             'buildFsmTransitionTable': buildFsmTransitionTable,
         };
@@ -2291,7 +2349,7 @@ var Fsmvc = (function() {
         // The model parameter must originate from algorithms.buildFsmModel().
         function outputFsmTransitionTable(model) {
             var obj = algorithms.buildFsmTransitionTable(model);
-            outputText(obj.table + '\n' + obj.css);
+            outputText(obj.table + '\n\n' + obj.css);
         }
 
         function switchConfig(type) {
@@ -2327,6 +2385,7 @@ var Fsmvc = (function() {
         'config': config,
         'setConfigFor': setConfigFor,
         'initCanvas': initCanvas,
+        'tieFsmAlphabetContainerToCanvas': tieFsmAlphabetCOntainerToCanvas,
 
         'setCanvas': setCanvas,
         'setCanvasSize': setCanvasSize,
