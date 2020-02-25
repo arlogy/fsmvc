@@ -1231,7 +1231,7 @@ var Fsmvc = (function() {
         fsmAlphabetContainer.style.left = (canvasRectLeft + spacingLeft) + 'px';
     }
     function getFsmAlphabetStr() { return fsmAlphabetContainer ? fsmAlphabetContainer.value : ''; }
-    function setFsmAlphabetStr(str) { // doesn't matter if parameter is a string
+    function setFsmAlphabetStr(str) { // no need to check if parameter is a string
         if(fsmAlphabetContainer) {
             fsmAlphabetContainer.value = str;
             fsmAlphabetContainer.dispatchEvent(new CustomEvent('input')); // otherwise input-event callback won't be called
@@ -1357,7 +1357,8 @@ var Fsmvc = (function() {
         canvas.onmouseup = null;
 
         if(fsmAlphabetContainer) {
-            fsmAlphabetContainer.oninput = null;
+            var savedVal = fsmAlphabetContainer.value;
+            fsmAlphabetContainer.oninput = function(e) { this.value = savedVal; };
         }
 
         document.removeEventListener('keydown', onDocumentKeydown);
@@ -1495,7 +1496,10 @@ var Fsmvc = (function() {
         }
     }
 
-    function onFsmAlphabetContainerUpdated(e) { saveBackupAuto(); }
+    function onFsmAlphabetContainerUpdated(e) {
+        this.value = convertLatexShortcuts(this.value);
+        saveBackupAuto();
+    }
 
     function onDocumentKeydown(e) {
         var key = crossBrowserKey(e);
