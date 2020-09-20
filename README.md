@@ -17,5 +17,5 @@ created back in 2010. His project is MIT-covered too. The key difference with
 
 # Try it
 
-- **Just want to create?** Head to [visual-code.net](https://visual-code.net).
-- **Want to learn how to use it?** Grab and open the files in directory `www`.
+- **Just want to create?** Please head to [visualcode.fsndp.com](https://visualcode.fsndp.com).
+- **Want to learn how to use it?** Please take a look at the files in the `www` directory.
