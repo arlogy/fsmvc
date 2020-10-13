@@ -6,8 +6,11 @@
 - is a tool to control the rendering process of a given FSM view (basically an
 Html `<canvas>` element).
 - can be configured to draw network-alikes (not just FSMs).
-- features import/export in several formats: JSON, LaTeX, PNG and SVG.
-- is designed to be reusable in other projects but is not mobile-friendly yet.
+- features import/export in several formats.
+    - `in & out`: JSON.
+    - `in only`: none.
+    - `out only`: LaTeX, PNG and SVG.
+- is designed to be reusable in other projects but is not mobile-friendly.
 - is MIT-released: copyright notice and convenient documentation can be found in
 source code.
 

@@ -42,22 +42,23 @@
  machines. But it is more generic than that: it provides routines to display
  graphs (a graph being a set of nodes possibly connected by links). Note that
  the actual view where content will be displayed must be an Html canvas element.
- And when defining canvas in Html don't set 'width' and 'height' from CSS code;
- otherwise you might not be able to interact with canvas. Instead set those
- properties directly in Html <canvas> tag or later from JavaScript code.
+ And when defining the canvas element in Html don't set 'width' and 'height'
+ from CSS code; otherwise you might not be able to interact with the canvas.
+ Instead set those properties directly in the Html <canvas> tag or later from
+ JavaScript code.
 
  This controller features import/export in custom JSON format. But in case you
- prefer to use your own model (for instance when you have a tree-type designed
- to support several tree traversal algorithms), one way to sort things out is to
- do as follows.
+ prefer to use your own model or data structure (for instance when you have a
+ tree-type designed to support specific tree traversal algorithms), one way to
+ sort things out is to do as follows.
      1. Perform import/export in the format expected by this controller.
      2. Once data are imported, grab the content of the canvas and fill your
         own model from that.
 
  When this script is executed an object named Fsmvc (Finite State Machine View
- Controller) is created. It hosts several properties to customize what to render
- and how to render. For detailed information please take a look at the
- return-statement at the end of this file.
+ Controller) is created. It hosts several properties to customize what and how
+ to render. For detailed information please take a look at the return-statement
+ at the end of this file.
 
  Side notes: the thickness properties ('borderWidth' for nodes and 'lineWidth'
  for links) are not introduced because otherwise one will need to update the
@@ -86,23 +87,23 @@ if(!Array.isArray) {
 
 var Fsmvc = (function() {
     var config = { // This config object is setup for use with finite state machines.
-                   // Its properties can later be altered to support other types of data structures.
+                   // But its properties can be altered to support other types of data structures.
         'global': {
             'autoBackup': true, // tells whether a local backup must be saved automatically,
                                 // in which case it is also restored automatically
             'autoBackupId': 'fsmvc_autoBackup_id', // the id used for auto-backup when enabled
-                                                   // you might want to set this to distinguish between backups
+                                                   // you might want to set this property to distinguish between backups
         },
         'canvas': {
-            'acceptLinks': true, // tells whether instances of Link can be pushed into canvas (not just from the user interface)
+            'acceptLinks': true, // tells whether instances of Link can be pushed into the canvas (not just from the user interface)
                                  // useful in case one wants to use this controller to display data models other than networks (arrays for instance)
             'acceptSelfLinks': true, // same here but for instances of SelfLink
             'acceptStartLinks': true, // same here but for instances of StartLink
             'font': '20px "Times New Roman", serif', // fixed font for canvas elements
                                                      // there is no need to set a specific font for each element
-            'fontTextVerticalPadding': 5, // value used to give the impression that the text displayed for nodes is vertically centered
+            'fontTextVerticalPadding': 5, // used to give the impression that the text displayed for nodes is vertically centered
                                           // it is font-dependant and also affects text positioning for links
-                                          // so value must be set accordingly
+                                          // so the value must be choosen accordingly
                                           // when testing consider trying different letter shapes (a, b and p should be enough)
             'lineDashSegments': [5, 3], // defines the line dash pattern to use for canvas items with dashes enabled
                                         // [5, 3] means that each dash will be 5px, followed by a space of 3px
@@ -111,9 +112,9 @@ var Fsmvc = (function() {
         },
         'links': {
             'arrowHeadAtSrc': false, // inherited by all instances of Link
-            'arrowHeadAtSrcOverridable': false, // tells whether property can be overridden from the outside (when importing JSON content)
+            'arrowHeadAtSrcOverridable': false, // tells whether this property can be overridden from the outside (when importing JSON content)
             'arrowHeadAtDst': true,  // inherited by all instances of Link and SelfLink
-            'arrowHeadAtDstOverridable': false, // tells whether property can be overridden from the outside (when importing JSON content)
+            'arrowHeadAtDstOverridable': false, // tells whether this property can be overridden from the outside (when importing JSON content)
             'lineColor': 'black', // inherited by all links
             'arrowColor': 'black', // inherited by all links
             'textColor': 'black', // inherited by all links
@@ -291,7 +292,7 @@ var Fsmvc = (function() {
         // (1) We don't actually need to check that nodes are different because
         //     in case they are not the observed behaviour is similar to the
         //     case where nodes are different but at the exact same position:
-        //     the link is there but not visible on screen. But we prefer to
+        //     the link is there but not visible on screen. However we prefer to
         //     ignore instances of Link between two identical nodes because we
         //     already have the SelfLink class.
     };
@@ -1035,7 +1036,7 @@ var Fsmvc = (function() {
     var greekLetterNames = [ 'Alpha', 'Beta', 'Gamma', 'Delta', 'Epsilon', 'Zeta', 'Eta', 'Theta', 'Iota', 'Kappa', 'Lambda', 'Mu', 'Nu', 'Xi', 'Omicron', 'Pi', 'Rho', 'Sigma', 'Tau', 'Upsilon', 'Phi', 'Chi', 'Psi', 'Omega' ];
 
     // Transforms greek and subscript notations (in text) into actual characters.
-    // Here are some input -> output examples:
+    // Here are some <input> -> <output> examples:
     //     - '\\Beta' -> 'Β' and '\\beta' -> 'β' and '\\BeTa' -> '\BeTa' (left unchanged)
     //     - '\\Pi' -> 'Π' and '\\pi' -> 'π' and '\\pI' -> '\pI' (left unchanged)
     //     - '_0' -> '₀' thus 's_0' -> 's₀'
@@ -1203,7 +1204,7 @@ var Fsmvc = (function() {
         }
         fsmAlphabetContainer.placeholder = "FSM alphabet: comma-separated string";
         fsmAlphabetContainer.style.position = 'absolute';
-        tieFsmAlphabetCOntainerToCanvas(options);
+        tieFsmAlphabetContainerToCanvas(options);
         fsmAlphabetContainer.style.width = (canvas.width * 0.75) + 'px';
         fsmAlphabetContainer.style.height = height + 'px';
         if(options && options.showAlphabet) { // make sure alphabet container is shown if expected
@@ -1212,7 +1213,7 @@ var Fsmvc = (function() {
         return true;
     }
 
-    function tieFsmAlphabetCOntainerToCanvas(options) {
+    function tieFsmAlphabetContainerToCanvas(options) {
         if(!canvas || !fsmAlphabetContainer) return;
 
         var spacingTop = 10;
@@ -2389,7 +2390,7 @@ var Fsmvc = (function() {
         'config': config,
         'setConfigFor': setConfigFor,
         'initCanvas': initCanvas,
-        'tieFsmAlphabetContainerToCanvas': tieFsmAlphabetCOntainerToCanvas,
+        'tieFsmAlphabetContainerToCanvas': tieFsmAlphabetContainerToCanvas,
 
         'setCanvas': setCanvas,
         'setCanvasSize': setCanvasSize,
@@ -2422,8 +2423,7 @@ var Fsmvc = (function() {
 })();
 
 // (1) An exception might be raised when trying to access window.localStorage.
-//     So any access to the said storage must be wrapped into try-catch block.
-//     For instance in Google Chrome when Content Settings prevents from setting
-//     any data (basically when cookies are blocked), we get the following error
-//     message:
+//     So any access to that storage must be wrapped into a try-catch block.
+//     For instance we get the following error message when cookies are blocked
+//     in Google Chrome:
 //         - Failed to read the 'localStorage' property from 'Window': Access is denied for this document.
